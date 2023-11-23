@@ -40,8 +40,8 @@ def ont_status(host):
                 break
         print('\nВсе подключенные терминалы прошиты')
 
-def clear_ont(host):
-    print('Удаляем все сервисные порты и прописанные на порту 0/1/1 терминалы')
+def clear_ont(host, port):
+    print(f'Удаляем все сервисные порты и прописанные на порту 0/1/{port} терминалы')
     with telnetlib.Telnet(host, port=23) as tn:
         tn = telnetlib.Telnet(host)
         tn.read_until(b">>User name:")
@@ -54,15 +54,15 @@ def clear_ont(host):
         tn.write('y'.encode("utf-8") + b'\n')
         time.sleep(10)
         tn.write('interface gpon 0/1'.encode("utf-8") + b'\n')
-        tn.write('ont delete 1 all'.encode("utf-8") + b'\n')
+        tn.write(f'ont delete {port} all'.encode("utf-8") + b'\n')
         tn.write('y'.encode("utf-8") + b'\n')
         time.sleep(10)
         tn.write('quit'.encode("utf-8") + b'\n')
         tn.write('quit'.encode("utf-8") + b'\n')
         print('Выполнено')
 
-def factory_restore(host):
-    print('Сбрасываем на заводские все терминалы на порту 0/1/1')
+def factory_restore(host, port):
+    print(f'Сбрасываем на заводские все терминалы на порту 0/1/{port}')
     with telnetlib.Telnet(host, port=23) as tn:
         tn = telnetlib.Telnet(host)
         tn.read_until(b">>User name:")
@@ -72,12 +72,12 @@ def factory_restore(host):
         tn.write('enable'.encode("utf-8") + b'\n')
         tn.write('config'.encode("utf-8") + b'\n')
         tn.write('interface gpon 0/1'.encode("utf-8") + b'\n')
-        tn.write('ont factory-setting-restore 1 all'.encode("utf-8") + b'\n')
+        tn.write(f'ont factory-setting-restore {port} all'.encode("utf-8") + b'\n')
         tn.write('y'.encode("utf-8") + b'\n')
         time.sleep(120)
         print('Выполнено')
 
-def online_ont(host):
+def online_ont(host, port):
     with telnetlib.Telnet(host, port=23) as tn:
         tn = telnetlib.Telnet(host)
         tn.read_until(b">>User name:")
@@ -85,10 +85,10 @@ def online_ont(host):
         tn.read_until(b">>User password:")
         tn.write(config.password.encode("utf-8") + b"\n")
         tn.write('enable'.encode("utf-8") + b'\n')
-        print('Введена команда display ont info 0 1 1 all')
+        print(f'Введена команда display ont info 0 1 {port} all')
         count = 0
         while count < 3:
-            tn.write(f'display ont info 0 1 1 all'.encode("utf-8") + b'\n')
+            tn.write(f'display ont info 0 1 {port} all'.encode("utf-8") + b'\n')
             time.sleep(5)
             flag = True
             result = ''
@@ -120,7 +120,7 @@ def online_ont(host):
         return output
 
 
-def prepare_ont(host, onts):
+def prepare_ont(host, onts, port):
     print('\nНачинаем загружать конфиг на терминалы')
     with telnetlib.Telnet(host, port=23) as tn:
         tn = telnetlib.Telnet(host)
@@ -134,12 +134,12 @@ def prepare_ont(host, onts):
             print(f'Началась загрузка конфигурации на {i_ont}-й терминал\n')
             tn.write('ont-load info configuration Prepare_all.xml ftp 10.2.1.3 huawei ksa5oz6y'.encode("utf-8") + b'\n')
             time.sleep(0.5)
-            tn.write(f'ont-load select 0/1 1 {i_ont}'.encode("utf-8") + b'\n')
+            tn.write(f'ont-load select 0/1 {port} {i_ont}'.encode("utf-8") + b'\n')
             time.sleep(0.5)
             tn.write('ont-load start'.encode("utf-8") + b'\n')
             tn.write(b'\n')
             time.sleep(30)
-            tn.write(f'display ont-load select 0/1 1 {i_ont}'.encode("utf-8") + b'\n')
+            tn.write(f'display ont-load select 0/1 {port} {i_ont}'.encode("utf-8") + b'\n')
             while True:
                 output = tn.read_very_eager().decode("utf-8")
                 #print(output)
@@ -155,12 +155,16 @@ def prepare_ont(host, onts):
         print(f'\n\n\n{"*"* 50}\n\n\n\t\tПодготовка терминалов завершена!\n\n\n{"*"* 50}')
 
 host = '172.16.17.232'
+try:
+    port = int(input('Введите номер порта головной станции '))
+    ont_status(host)
+    clear_ont(host, port)
+    factory_restore(host, port)
+    ont_lst = online_ont(host, port)
+    prepare_ont(host, ont_lst, port)
+except ValueError:
+    print('Некорректный ввод')
 
-ont_status(host)
-clear_ont(host)
-factory_restore(host)
-ont_lst = online_ont(host)
-prepare_ont(host, ont_lst)
 
 
 
