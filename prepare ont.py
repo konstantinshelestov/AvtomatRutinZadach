@@ -3,10 +3,9 @@ import re
 import config
 import time
 
-
 def ont_status(host):
     # Удаляем сервисные порты и онты с порта
-    print(f'\n\n\n{"*" * 50}\n\n\n\t\tНачинаем подготовку оптических терминалов\n\n\n{"*" * 50}')
+    print(f'\n\n\n{"*" * 70}\n\n\n\t\tНачинаем подготовку оптических терминалов\n\n\n{"*" * 70}')
     with telnetlib.Telnet(host, port=23) as tn:
         tn = telnetlib.Telnet(host)
         tn.read_until(b">>User name:")
@@ -59,6 +58,7 @@ def clear_ont(host, port):
         time.sleep(10)
         tn.write('quit'.encode("utf-8") + b'\n')
         tn.write('quit'.encode("utf-8") + b'\n')
+        time.sleep(60)
         print('Выполнено')
 
 def factory_restore(host, port):
@@ -118,6 +118,30 @@ def online_ont(host, port):
                 output.append(i_elem.split()[2])
         print('\nСписок онтов', output)
         return output
+def show_version(host, port):
+    print('\nНачинаем загружать конфиг на терминалы')
+    with telnetlib.Telnet(host, port=23) as tn:
+        tn = telnetlib.Telnet(host)
+        tn.read_until(b">>User name:")
+        tn.write(config.user.encode("utf-8") + b"\n")
+        tn.read_until(b">>User password:")
+        tn.write(config.password.encode("utf-8") + b"\n")
+        tn.write('enable'.encode("utf-8") + b'\n')
+        tn.write(f'display ont version 0 1 {port} all'.encode("utf-8") + b'\n')
+        flag = True
+        result = ''
+        while flag:
+            output = tn.read_very_eager().decode("utf-8")
+            if 'More' in output:
+                output = re.sub(".+More.+", "", output)
+                tn.write(b" ")
+                time.sleep(1)
+            else:
+                flag = False
+            result = result + output
+        result = result.replace('\x1b[37D', '').split('\n')
+
+
 
 
 def prepare_ont(host, onts, port):
@@ -132,7 +156,9 @@ def prepare_ont(host, onts, port):
         tn.write('diagnose'.encode("utf-8") + b'\n')
         for i_ont in onts:
             print(f'Началась загрузка конфигурации на {i_ont}-й терминал\n')
-            tn.write('ont-load info configuration Prepare_all.xml ftp 10.2.1.3 huawei ksa5oz6y'.encode("utf-8") + b'\n')
+            # tn.write('ont-load info configuration Prepare_HS8545M5.xml ftp 10.2.1.3 huawei ksa5oz6y'.encode("utf-8") + b'\n')
+            tn.write(
+                'ont-load info configuration Prepare_all.xml ftp 10.2.1.3 huawei ksa5oz6y'.encode("utf-8") + b'\n')
             time.sleep(0.5)
             tn.write(f'ont-load select 0/1 {port} {i_ont}'.encode("utf-8") + b'\n')
             time.sleep(0.5)
@@ -142,17 +168,17 @@ def prepare_ont(host, onts, port):
             tn.write(f'display ont-load select 0/1 {port} {i_ont}'.encode("utf-8") + b'\n')
             while True:
                 output = tn.read_very_eager().decode("utf-8")
-                #print(output)
+                print(output)
                 if 'Loading' in output:
                     time.sleep(10)
                 else:
                     break
             tn.write('ont-load stop'.encode("utf-8") + b'\n')
             output = tn.read_very_eager().decode("utf-8")
-            #print(output)
+            print(output)
             print('Терминал сконфигурирован\n')
         tn.write('quit'.encode("utf-8") + b'\n')
-        print(f'\n\n\n{"*"* 50}\n\n\n\t\tПодготовка терминалов завершена!\n\n\n{"*"* 50}')
+        print(f'\n\n\n{"*"* 70}\n\n\n\t\tПодготовка терминалов завершена!\n\n\n{"*"* 70}')
 
 host = '172.16.17.232'
 try:
